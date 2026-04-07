@@ -1,0 +1,13 @@
+pandas
+numpy
+mysql-connector-python
+sqlalchemy
+scikit-learn
+lightgbm
+python-dotenv
+joblib
+matplotlib
+jupyter
+ipykernel
+streamlit
+groq

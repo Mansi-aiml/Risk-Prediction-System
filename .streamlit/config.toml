@@ -1,0 +1,17 @@
+[theme]
+
+# Base theme
+base="light"
+
+# Primary accent color
+primaryColor="#6FB3FF"
+
+# Background colors
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#F2F9FF"
+
+# Text
+textColor="#1E1E1E"
+
+# Font
+font="sans serif"
