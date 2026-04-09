@@ -1,12 +1,22 @@
 import os
+from functools import lru_cache
+
 from dotenv import load_dotenv
 from groq import Groq
 
 load_dotenv()
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
+
+@lru_cache(maxsize=1)
+def _groq_client() -> Groq:
+    key = os.getenv("GROQ_API_KEY")
+    print(key, "999999999999999999999999999999999")
+    if not key:
+        raise RuntimeError(
+            "GROQ_API_KEY is not set. Add it to your environment or .env file for LLM warnings/recommendations."
+        )
+    return Groq(api_key=key)
+
 
 def generate_llm_advice(department, incident_type, severity, risk_level):
 
@@ -30,7 +40,7 @@ RECOMMENDATIONS:
 - recommendation 3
 """
 
-    response = client.chat.completions.create(
+    response = _groq_client().chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": "You are an industrial safety advisor."},

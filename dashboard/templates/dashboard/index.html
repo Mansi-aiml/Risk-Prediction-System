@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident Predictive Analysis</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --sidebar: #f5faff;
+      --input-bg: #eef7ff;
+      --input-num-bg: #eefaf0;
+      --accent: #1e5a96;
+      --muted: #5a6b7d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+    }
+    aside {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--sidebar);
+      padding: 1.25rem 1.5rem;
+      border-right: 1px solid #e0e8f0;
+    }
+    aside h2 { margin: 0 0 1rem; font-size: 1rem; color: var(--muted); font-weight: 600; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
+    select {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid #c8d8e8;
+      border-radius: 6px;
+      background: var(--input-bg);
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid #c8d8e8;
+      border-radius: 6px;
+      background: var(--input-num-bg);
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    main {
+      flex: 1;
+      padding: 1.5rem 2.5rem;
+      max-width: none;
+      width: 100%;
+    }
+    h1 { font-size: 2rem; margin: 0 0 1.5rem; font-weight: 700; }
+    h2.section-title { font-size: 1.6rem; margin: 0 0 1rem; font-weight: 600; }
+    h3.sub { font-size: 1.1rem; margin: 1.25rem 0 0.5rem; font-weight: 600; }
+    .metrics-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      max-width: 900px;
+    }
+    .metrics-three {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1rem;
+      max-width: 900px;
+    }
+    @media (max-width: 768px) {
+      .metrics-two, .metrics-three { grid-template-columns: 1fr; }
+      body { flex-direction: column; }
+      aside { width: 100%; border-right: none; border-bottom: 1px solid #e0e8f0; }
+    }
+    .metric {
+      background: #f8fafc;
+      border: 1px solid #e8eef5;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+    }
+    .metric .lbl { font-size: 0.875rem; color: var(--muted); font-weight: 600; }
+    .metric .val { font-size: 1.4rem; font-weight: 700; margin-top: 0.35rem; }
+    section.block { margin-bottom: 2.5rem; }
+    .warn { background: #fff8e6; border-left: 4px solid #e6a800; padding: 0.65rem 1rem; margin: 0.5rem 0; border-radius: 0 8px 8px 0; }
+    .rec { background: #eef7ff; border-left: 4px solid var(--accent); padding: 0.65rem 1rem; margin: 0.5rem 0; border-radius: 0 8px 8px 0; }
+    .err { background: #ffe8e8; color: #8b1a1a; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+    .info { background: #f0f7ff; color: #1a4a6e; padding: 0.85rem 1rem; border-radius: 8px; margin: 0.75rem 0; }
+    .bar-row { margin: 0.5rem 0; max-width: 640px; }
+    .bar-row .bar-label { font-size: 0.85rem; margin-bottom: 0.2rem; display: flex; justify-content: space-between; }
+    .bar-track {
+      height: 22px;
+      background: #e8eef5;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: rgba(30, 90, 150, 0.75);
+      border-radius: 6px;
+      min-width: 2px;
+    }
+    .hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <aside>
+    <h2>User input</h2>
+    {% if load_error %}
+      <p class="err" style="font-size:0.9rem;">Could not load data: {{ load_error }}</p>
+    {% else %}
+      <form method="post" action="">
+        {% csrf_token %}
+        <label for="id_department">Select department</label>
+        <select name="department" id="id_department" required>
+          <option value="" {% if not selected_department %}selected{% endif %} disabled>— Choose —</option>
+          {% for d in departments %}
+            <option value="{{ d }}" {% if d == selected_department %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+        <label for="id_forecast_days">Enter forecast days</label>
+        <input type="number" name="forecast_days" id="id_forecast_days" min="1" max="365" value="{{ forecast_days }}">
+        <button type="submit">Run prediction</button>
+      </form>
+      <p class="hint">Same workflow as Streamlit: choose inputs, then submit.</p>
+    {% endif %}
+  </aside>
+
+  <main>
+    <h1>📊 Incident Predictive Analysis System</h1>
+
+    {% if prediction_error %}
+      <div class="err">{{ prediction_error }}</div>
+    {% endif %}
+
+    {% if risk %}
+      <section class="block">
+        <h2 class="section-title">🔎 Incident Risk Prediction</h2>
+        <div class="metrics-two">
+          <div class="metric">
+            <div class="lbl">Predicted Incident Type</div>
+            <div class="val">{{ risk.incident_type }}</div>
+          </div>
+          <div class="metric">
+            <div class="lbl">Probability</div>
+            <div class="val">{{ risk.probability }}</div>
+          </div>
+          <div class="metric">
+            <div class="lbl">Predicted Severity</div>
+            <div class="val">{{ risk.severity_type }}</div>
+          </div>
+          <div class="metric">
+            <div class="lbl">Month</div>
+            <div class="val">{{ risk.month }}</div>
+          </div>
+          <div class="metric">
+            <div class="lbl">Risk Level</div>
+            <div class="val">{{ risk.risk_level }}</div>
+          </div>
+          <div class="metric">
+            <div class="lbl">Season</div>
+            <div class="val">{{ risk.season }}</div>
+          </div>
+        </div>
+
+        <h3 class="sub">⚠️ Warnings</h3>
+        {% for w in warnings_list %}
+          <div class="warn">{{ w }}</div>
+        {% empty %}
+          <p class="hint">None</p>
+        {% endfor %}
+
+        <h3 class="sub">✅ Recommendations</h3>
+        {% for r in recommendations_list %}
+          <div class="rec">{{ r }}</div>
+        {% empty %}
+          <p class="hint">None</p>
+        {% endfor %}
+      </section>
+
+      <section class="block">
+        <h2 class="section-title">📈 Time Series Frequency Forecast</h2>
+        {% if ts_warning %}
+          <div class="info">Time-series forecast skipped: {{ ts_warning }}</div>
+        {% elif ts %}
+          <div class="metrics-three">
+            <div class="metric">
+              <div class="lbl">Next {{ forecast_days }} Days Incidents</div>
+              <div class="val">{{ ts.total_incidents }}</div>
+            </div>
+            <div class="metric">
+              <div class="lbl">Trend</div>
+              <div class="val">{{ ts.trend }}</div>
+            </div>
+            <div class="metric">
+              <div class="lbl">High Risk Week</div>
+              <div class="val">{{ ts.high_risk_week }}</div>
+            </div>
+          </div>
+
+          <h3 class="sub">Expected Incident Distribution</h3>
+          {% if distribution_bars %}
+            {% for row in distribution_bars %}
+              <div class="bar-row">
+                <div class="bar-label">
+                  <span>{{ row.label }}</span>
+                  <span>{{ row.count }}</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width: {{ row.pct|floatformat:1 }}%;"></div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="info">Insufficient data for distribution analysis.</div>
+          {% endif %}
+        {% endif %}
+      </section>
+    {% elif not load_error and not prediction_error %}
+      <p class="hint">Select a department and click <strong>Run prediction</strong> to see results here (like Streamlit after the button).</p>
+    {% endif %}
+  </main>
+</body>
+</html>

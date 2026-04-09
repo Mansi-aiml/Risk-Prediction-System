@@ -81,12 +81,13 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df["season_encoded"] = df["season"].map(SEASON_ENCODING)
     return df
 
+from typing import Tuple
 
 def _fit_or_load_encoder(
     series: pd.Series,
     path: str,
     fit: bool,
-) -> tuple[np.ndarray, LabelEncoder]:
+) -> Tuple[np.ndarray, LabelEncoder]:
     """Fit a new LabelEncoder or load a saved one, then transform the series."""
     le = LabelEncoder()
     if fit:
@@ -102,7 +103,7 @@ def _fit_or_load_encoder(
 def encode_labels(
     df: pd.DataFrame,
     fit: bool = True,
-) -> tuple[pd.DataFrame, dict[str, LabelEncoder]]:
+) -> Tuple[np.ndarray, LabelEncoder]:
     """
     Label-encode department, incident type, and severity type columns.
 
@@ -137,7 +138,7 @@ def encode_labels(
 def preprocess(
     df: pd.DataFrame,
     fit: bool = True,
-) -> tuple[pd.DataFrame, dict[str, LabelEncoder]]:
+) -> Tuple[np.ndarray, LabelEncoder]:
     """
     Full preprocessing pipeline: validate → clean → engineer → encode.
 
