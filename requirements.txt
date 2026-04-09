@@ -12,3 +12,5 @@ ipykernel
 streamlit
 groq
 django>=5.0,<6
+
+
