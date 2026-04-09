@@ -116,16 +116,47 @@
       min-width: 2px;
     }
     .hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.75rem; }
+    #loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.8);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loader {
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #1e5a96;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
   </style>
 </head>
+
 <body>
+  <div id="loader-overlay">
+  <div class="loader"></div>
+</div>
   <aside>
     <h2>User input</h2>
     {% if load_error %}
       <p class="err" style="font-size:0.9rem;">Could not load data: {{ load_error }}</p>
     {% else %}
-      <form method="post" action="">
+      <!-- <form method="post" action=""> -->
+        <form method="post" action="" onsubmit="showLoader()">
         {% csrf_token %}
+
         <label for="id_department">Select department</label>
         <select name="department" id="id_department" required>
           <option value="" {% if not selected_department %}selected{% endif %} disabled>— Choose —</option>
@@ -133,8 +164,10 @@
             <option value="{{ d }}" {% if d == selected_department %}selected{% endif %}>{{ d }}</option>
           {% endfor %}
         </select>
+
         <label for="id_forecast_days">Enter forecast days</label>
         <input type="number" name="forecast_days" id="id_forecast_days" min="1" max="365" value="{{ forecast_days }}">
+
         <button type="submit">Run prediction</button>
       </form>
       <p class="hint">Same workflow as Streamlit: choose inputs, then submit.</p>
@@ -235,5 +268,10 @@
       <p class="hint">Select a department and click <strong>Run prediction</strong> to see results here (like Streamlit after the button).</p>
     {% endif %}
   </main>
+  <script>
+function showLoader() {
+  document.getElementById("loader-overlay").style.display = "flex";
+}
+</script>
 </body>
 </html>
