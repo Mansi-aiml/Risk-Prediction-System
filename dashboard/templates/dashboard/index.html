@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -153,7 +153,7 @@
     {% if load_error %}
       <p class="err" style="font-size:0.9rem;">Could not load data: {{ load_error }}</p>
     {% else %}
-      <!-- <form method="post" action=""> -->
+      <form method="post" action="">
         <form method="post" action="" onsubmit="showLoader()">
         {% csrf_token %}
 
@@ -273,5 +273,242 @@ function showLoader() {
   document.getElementById("loader-overlay").style.display = "flex";
 }
 </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incident Predictive Analysis</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --sidebar: #f5faff;
+      --input-bg: #eef7ff;
+      --input-num-bg: #eefaf0;
+      --accent: #1e5a96;
+      --muted: #5a6b7d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+    }
+    aside {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--sidebar);
+      padding: 1.25rem 1.5rem;
+      border-right: 1px solid #e0e8f0;
+    }
+    aside h2 { margin: 0 0 1rem; font-size: 1rem; color: var(--muted); font-weight: 600; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
+    select, input[type="number"] {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid #c8d8e8;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    select { background: var(--input-bg); }
+    input[type="number"] { background: var(--input-num-bg); }
+
+    button {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    main {
+      flex: 1;
+      padding: 1.5rem 2.5rem;
+      width: 100%;
+    }
+
+    h1 { font-size: 2rem; margin-bottom: 1.5rem; }
+
+    .metrics-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .metrics-three {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .metric {
+      background: #f8fafc;
+      border: 1px solid #e8eef5;
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .lbl { font-size: 0.85rem; color: var(--muted); }
+    .val { font-size: 1.3rem; font-weight: bold; }
+
+    .warn { background: #fff8e6; padding: 0.6rem; margin: 0.5rem 0; }
+    .rec { background: #eef7ff; padding: 0.6rem; margin: 0.5rem 0; }
+    .err { background: #ffe8e8; padding: 1rem; margin: 1rem 0; }
+    .info { background: #f0f7ff; padding: 0.8rem; margin: 1rem 0; }
+
+    .bar-track { background: #e8eef5; height: 20px; border-radius: 5px; }
+    .bar-fill { background: #1e5a96; height: 100%; }
+
+    #loader-overlay {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .loader {
+      border: 6px solid #eee;
+      border-top: 6px solid #1e5a96;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="loader-overlay">
+  <div class="loader"></div>
+</div>
+
+<aside>
+  <h2>User Input</h2>
+
+  {% if load_error %}
+    <div class="err">{{ load_error }}</div>
+  {% else %}
+
+  <form method="post" onsubmit="showLoader()">
+    {% csrf_token %}
+
+    <!-- Department -->
+    <label>Select Department</label>
+    <select name="department">
+      <option value="" {% if not selected_department %}selected{% endif %}>-- All --</option>
+      {% for d in departments %}
+        <option value="{{ d }}" {% if d == selected_department %}selected{% endif %}>
+          {{ d }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <!-- Company -->
+    <label>Select Company</label>
+    <select name="company">
+      <option value="" {% if not selected_company %}selected{% endif %}>-- All --</option>
+      {% for c in companies %}
+        <option value="{{ c }}" {% if c == selected_company %}selected{% endif %}>
+          {{ c }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <!-- Forecast -->
+    <label>Forecast Days</label>
+    <input type="number" name="forecast_days" value="{{ forecast_days }}" min="1" max="365">
+
+    <button type="submit">Run Prediction</button>
+  </form>
+
+  <p style="font-size:12px;color:gray;">
+    You can select department, company, or both.
+  </p>
+
+  {% endif %}
+</aside>
+
+<main>
+
+<h1>📊 Incident Predictive Analysis</h1>
+
+{% if prediction_error %}
+  <div class="err">{{ prediction_error }}</div>
+{% endif %}
+
+{% if risk %}
+
+<h2>🔎 Risk Prediction</h2>
+
+<div class="metrics-two">
+  <div class="metric"><div class="lbl">Incident</div><div class="val">{{ risk.incident_type }}</div></div>
+  <div class="metric"><div class="lbl">Probability</div><div class="val">{{ risk.probability }}</div></div>
+  <div class="metric"><div class="lbl">Severity</div><div class="val">{{ risk.severity_type }}</div></div>
+  <div class="metric"><div class="lbl">Month</div><div class="val">{{ risk.month }}</div></div>
+  <div class="metric"><div class="lbl">Risk</div><div class="val">{{ risk.risk_level }}</div></div>
+  <div class="metric"><div class="lbl">Season</div><div class="val">{{ risk.season }}</div></div>
+</div>
+
+<h3>⚠️ Warnings</h3>
+{% for w in warnings_list %}
+  <div class="warn">{{ w }}</div>
+{% endfor %}
+
+<h3>✅ Recommendations</h3>
+{% for r in recommendations_list %}
+  <div class="rec">{{ r }}</div>
+{% endfor %}
+
+<h2>📈 Forecast</h2>
+
+{% if ts %}
+<div class="metrics-three">
+  <div class="metric"><div class="lbl">Incidents</div><div class="val">{{ ts.total_incidents }}</div></div>
+  <div class="metric"><div class="lbl">Trend</div><div class="val">{{ ts.trend }}</div></div>
+  <div class="metric"><div class="lbl">Risk Week</div><div class="val">{{ ts.high_risk_week }}</div></div>
+</div>
+
+<h3>Distribution</h3>
+
+{% for row in distribution_bars %}
+  <div>
+    {{ row.label }} ({{ row.count }})
+    <div class="bar-track">
+      <div class="bar-fill" style="width: {{ row.pct }}%"></div>
+    </div>
+  </div>
+{% endfor %}
+
+{% endif %}
+
+{% endif %}
+
+</main>
+
+<script>
+function showLoader() {
+  document.getElementById("loader-overlay").style.display = "flex";
+}
+</script>
+
 </body>
 </html>
