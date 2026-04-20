@@ -22,7 +22,6 @@ def generate_llm_advice(department, incident_type, severity, risk_level):
 
     prompt = f"""
 You are an industrial safety expert.
-
 Department: {department}
 Incident Type: {incident_type}
 Severity: {severity}

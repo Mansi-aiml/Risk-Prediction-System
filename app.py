@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
-
-from config.settings import DATE_COLUMN
+# from chatbot.sql_chatbot import load_sql_agent
+from config.settings import DATE_COLUMN, COMPANY_COLUMN, DEPARTMENT_COLUMN
 from data.db_connector import fetch_incident_data
 from data.preprocessor import preprocess
 from models.predictor import predict_future_risks
 from models.ts_forecaster import run_ts_forecast
+# from chatbot.sql_chatbot import chatbot_agent
 
 
 # ─────────────────────────────────────────────────────────────
@@ -86,18 +87,22 @@ def load_data():
 
 df_processed, last_training_date = load_data()
 
+# chatbot_agent = load_sql_agent()
 
 # ─────────────────────────────────────────────────────────────
 # Sidebar Inputs
 # ─────────────────────────────────────────────────────────────
+_ALL = "-- All --"
+
 st.sidebar.header("User Input")
 
-available_depts = sorted(df_processed["department_name"].unique())
+# Department dropdown (optional — leave as '-- All --' to skip)
+available_depts = [_ALL] + sorted(df_processed[DEPARTMENT_COLUMN].dropna().unique())
+department = st.sidebar.selectbox("Select Department", available_depts)
 
-department = st.sidebar.selectbox(
-    "Select Department",
-    available_depts
-)
+# Company dropdown (optional — leave as '-- All --' to skip)
+available_companies = [_ALL] + sorted(df_processed[COMPANY_COLUMN].dropna().unique())
+company = st.sidebar.selectbox("Select Company", available_companies)
 
 forecast_days = st.sidebar.number_input(
     "Enter Forecast Days",
@@ -114,6 +119,42 @@ predict_button = st.sidebar.button("Run Prediction")
 # ─────────────────────────────────────────────────────────────
 if predict_button:
 
+    # ─────────────────────────────────────────────────────────
+    # Resolve selections and apply filters
+    # ─────────────────────────────────────────────────────────
+    dept_selected    = department != _ALL
+    company_selected = company    != _ALL
+
+    df_filtered = df_processed.copy()
+
+    if dept_selected:
+        df_filtered = df_filtered[df_filtered[DEPARTMENT_COLUMN] == department]
+    if company_selected:
+        df_filtered = df_filtered[df_filtered[COMPANY_COLUMN] == company]
+
+    if df_filtered.empty:
+        st.warning("No historical data available for this selection.")
+        st.stop()
+
+    # Derive the effective department for the ML classifier.
+    # When only company is selected the most common department in that
+    # company is used as a representative context for the model.
+    effective_department = (
+        department
+        if dept_selected
+        else df_filtered[DEPARTMENT_COLUMN].value_counts().idxmax()
+    )
+    effective_company = (
+    company
+    if company_selected
+    else df_filtered[COMPANY_COLUMN].value_counts().idxmax()
+    ) 
+
+    # For the TS forecaster: pass the pre-filtered df and the department
+    # only when the user explicitly chose one (None → forecast across all
+    # rows already in df_filtered).
+    ts_department = department if dept_selected else None
+
     # ==========================================================
     # 1️⃣ INCIDENT RISK PREDICTION
     # ==========================================================
@@ -121,9 +162,10 @@ if predict_button:
 
     try:
         result = predict_future_risks(
-            department,
+            effective_department,
+            effective_company,
             forecast_days,
-            last_training_date
+            last_training_date,
         )
 
         col1, col2 = st.columns(2)
@@ -141,20 +183,10 @@ if predict_button:
         st.subheader("⚠️ Warnings")
         for w in result["warning"]:
             st.warning(w)
-        
+
         st.subheader("✅ Recommendations")
-            
         for r in result["recommendation"]:
-                st.info(r)
-
-        #st.subheader("Recommendation")
-        #st.info(result["recommendation"])
-
-        #st.subheader("Warning")
-        #st.warning(result["warning"])
-
-        #st.subheader("AI Safety Advisory")
-        #st.info(result["ai_advice"])
+            st.info(r)
 
     except Exception as e:
         st.error(f"Prediction Error: {e}")
@@ -167,8 +199,8 @@ if predict_button:
 
     try:
         ts_result = run_ts_forecast(
-            df=df_processed,
-            department=department,
+            df=df_filtered,
+            department=ts_department,
             forecast_days=forecast_days,
             last_training_date=last_training_date,
         )
@@ -204,5 +236,18 @@ if predict_button:
     except Exception as e:
         st.warning(f"Time-Series Forecast skipped: {e}")
 
+# ─────────────────────────────────────────────────────────────
+# # 🤖 INCIDENT DATABASE CHATBOT
+# # ─────────────────────────────────────────────────────────────
 
-        
+# st.header("🤖 Incident Database Chatbot")
+
+# user_question = st.text_input("Ask about incidents")
+
+# if user_question:
+#     with st.spinner("Thinking..."):
+#         try:
+#             response = chatbot_agent.invoke({"input": user_question})
+#             st.success(response["output"])
+#         except Exception as e:
+#             st.error(f"Chatbot Error: {e}")

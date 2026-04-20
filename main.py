@@ -180,10 +180,11 @@ def main() -> None:
     print(f"\n  Available departments:\n  {available_depts}\n")
 
     department    = input("  Enter Department   : ").strip()
+    company       = input("  Enter Company      : ").strip()  
     forecast_days = int(input("  Enter Forecast Days: ").strip())
 
     try:
-        result = predict_future_risks(department, forecast_days, last_training_date)
+        result = predict_future_risks(department, company, forecast_days, last_training_date)
         _print_report(result)
     except ValueError as exc:
         print(f"\n  [ERROR] {exc}")

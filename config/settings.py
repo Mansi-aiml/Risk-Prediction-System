@@ -17,6 +17,8 @@ DATE_COLUMN = "incident_date"
 TARGET_INCIDENT_TYPE = "incident_type"
 TARGET_SEVERITY_TYPE = "severity_type"
 DEPARTMENT_COLUMN = "department_name"
+COMPANY_COLUMN    = "company_name"
+
 
 # ─── Feature Columns Used for Training ────────────────────────────────────────
 FEATURE_COLUMNS = [
@@ -25,6 +27,7 @@ FEATURE_COLUMNS = [
     "day_of_year",
     "season_encoded",
     "department_name_encoded",
+    "company_name_encoded",
     "is_weekend",
     "quarter",
 ]
@@ -64,13 +67,14 @@ ARTIFACTS_DIR = "artifacts"
 INCIDENT_MODEL_PATH  = os.path.join(ARTIFACTS_DIR, "incident_type_model.pkl")
 SEVERITY_MODEL_PATH  = os.path.join(ARTIFACTS_DIR, "severity_type_model.pkl")
 DEPT_ENCODER_PATH    = os.path.join(ARTIFACTS_DIR, "dept_encoder.pkl")
+COMPANY_ENCODER_PATH = os.path.join(ARTIFACTS_DIR, "company_encoder.pkl")
 INCIDENT_ENCODER_PATH = os.path.join(ARTIFACTS_DIR, "incident_encoder.pkl")
 SEVERITY_ENCODER_PATH = os.path.join(ARTIFACTS_DIR, "severity_encoder.pkl")
 
 # ─── Training Sample Cap ─────────────────────────────────────────────────────
 # Stratified sample drawn from the full dataset before training.
 # 50 K rows capture all temporal/department patterns without the 372 K overhead.
-MAX_TRAIN_SAMPLES = 50_000
+MAX_TRAIN_SAMPLES = 300000
 
 # ─── Time-Series Forecasting Settings ────────────────────────────────────────
 # Lag windows (days) and rolling-mean windows used as features.

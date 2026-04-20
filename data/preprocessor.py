@@ -8,12 +8,14 @@ from sklearn.preprocessing import LabelEncoder
 from config.settings import (
     DATE_COLUMN,
     DEPARTMENT_COLUMN,
+    COMPANY_COLUMN,
     TARGET_INCIDENT_TYPE,
     TARGET_SEVERITY_TYPE,
     SEASON_MAP,
     SEASON_ENCODING,
     ARTIFACTS_DIR,
     DEPT_ENCODER_PATH,
+    COMPANY_ENCODER_PATH,
     INCIDENT_ENCODER_PATH,
     SEVERITY_ENCODER_PATH,
 )
@@ -24,6 +26,7 @@ logger = logging.getLogger(__name__)
 REQUIRED_COLUMNS = [
     DATE_COLUMN,
     DEPARTMENT_COLUMN,
+    COMPANY_COLUMN,
     TARGET_INCIDENT_TYPE,
     TARGET_SEVERITY_TYPE,
 ]
@@ -51,7 +54,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     logger.info("Cleaned data: %d → %d rows (dropped %d).", before, after, before - after)
 
-    for col in [DEPARTMENT_COLUMN, TARGET_INCIDENT_TYPE, TARGET_SEVERITY_TYPE]:
+    for col in [DEPARTMENT_COLUMN,COMPANY_COLUMN, TARGET_INCIDENT_TYPE, TARGET_SEVERITY_TYPE]:
         df[col] = df[col].astype(str).str.strip()
 
     return df
@@ -123,6 +126,7 @@ def encode_labels(
 
     encoding_targets = [
         (DEPARTMENT_COLUMN,    DEPT_ENCODER_PATH),
+        (COMPANY_COLUMN, COMPANY_ENCODER_PATH), 
         (TARGET_INCIDENT_TYPE, INCIDENT_ENCODER_PATH),
         (TARGET_SEVERITY_TYPE, SEVERITY_ENCODER_PATH),
     ]

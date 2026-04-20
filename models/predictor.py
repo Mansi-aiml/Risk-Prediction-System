@@ -13,6 +13,7 @@ from config.settings import (
     SEASON_ENCODING,
     SEASON_MAP,
     DEPT_ENCODER_PATH,
+    COMPANY_ENCODER_PATH,
     INCIDENT_ENCODER_PATH,
     INCIDENT_MODEL_PATH,
     SEVERITY_ENCODER_PATH,
@@ -33,6 +34,7 @@ def _load_artifacts() -> tuple:
         joblib.load(INCIDENT_MODEL_PATH),
         joblib.load(SEVERITY_MODEL_PATH),
         joblib.load(DEPT_ENCODER_PATH),
+        joblib.load(COMPANY_ENCODER_PATH),
         joblib.load(INCIDENT_ENCODER_PATH),
         joblib.load(SEVERITY_ENCODER_PATH),
     )
@@ -44,6 +46,7 @@ def _build_future_feature_rows(
     last_date: pd.Timestamp,
     forecast_days: int,
     dept_encoded: int,
+    company_encoded: int,
 ) -> pd.DataFrame:
     """
     Generate one feature row per day in the forecast window.
@@ -64,6 +67,7 @@ def _build_future_feature_rows(
                 "day_of_year":             future_date.timetuple().tm_yday,
                 "season_encoded":          SEASON_ENCODING[season_label],
                 "department_name_encoded": dept_encoded,
+                "company_name_encoded": company_encoded, 
                 "is_weekend":              int(future_date.dayofweek >= 5),
                 "quarter":                 (month - 1) // 3 + 1,
             }
@@ -106,6 +110,7 @@ def _forecast_midpoint_month(
 
 def predict_future_risks(
     department: str,
+    company: str, 
     forecast_days: int,
     last_training_date: pd.Timestamp,
 ) -> dict:
@@ -126,7 +131,7 @@ def predict_future_risks(
         incident_type, probability, severity_type, risk_level,
         recommendation, warning
     """
-    incident_model, severity_model, dept_enc, incident_enc, severity_enc = _load_artifacts()
+    incident_model, severity_model, dept_enc,company_enc, incident_enc, severity_enc = _load_artifacts()
 
     # Department validation
     known_depts = list(dept_enc.classes_)
@@ -138,9 +143,19 @@ def predict_future_risks(
 
     dept_encoded = int(dept_enc.transform([department])[0])
 
+    #Company validation
+    known_companies = list(company_enc.classes_)
+    if company not in known_companies:
+        raise ValueError(
+            f"Company '{company}' not seen in training.\n"
+            f" Available companies: {known_companies}"
+        )
+
+    company_encoded = int(company_enc.transform([company])[0])
+
     # Build future feature matrix — keep as DataFrame so feature names match
     # what the model stored at fit time (avoids sklearn UserWarning).
-    future_df = _build_future_feature_rows(last_training_date, forecast_days, dept_encoded)
+    future_df = _build_future_feature_rows(last_training_date, forecast_days, dept_encoded,company_encoded)
     X_future = future_df[FEATURE_COLUMNS]
 
     # Predict probabilities across forecast window

@@ -132,10 +132,11 @@ def _synthetic_monthly_series(dept_df: pd.DataFrame) -> pd.Series:
 
 def _build_time_series(
     df: pd.DataFrame,
-    department: str,
+    department: str | None = None,
 ) -> tuple[pd.Series, str]:
     """
-    Choose the best available granularity for the department.
+    Choose the best available granularity for the department (or full df when
+    department is None, e.g. for company-level or unfiltered forecasts).
 
     Returns
     -------
@@ -143,9 +144,14 @@ def _build_time_series(
         series      — DatetimeIndex, values = incident counts per period.
         granularity — ``'daily'`` or ``'monthly'``.
     """
-    dept_df = df[df[DEPARTMENT_COLUMN] == department].copy()
+    dept_df = (
+        df[df[DEPARTMENT_COLUMN] == department].copy()
+        if department is not None
+        else df.copy()
+    )
     if dept_df.empty:
-        raise ValueError(f"No records found for department '{department}'.")
+        label = f"department '{department}'" if department else "the selected filter"
+        raise ValueError(f"No records found for {label}.")
 
     # ── 1. Daily ──────────────────────────────────────────────────────────────
     daily = _daily_series(dept_df)
@@ -317,14 +323,15 @@ def _highest_risk_week(predictions: list[float]) -> str:
 
 def _expected_distribution(
     df: pd.DataFrame,
-    department: str,
+    department: str | None,
     total_incidents: int,
 ) -> dict[str, int]:
     """
     Distribute *total_incidents* across the top incident types observed
-    historically for *department*, using their proportional frequency.
+    historically for *department* (or the full df when department is None),
+    using their proportional frequency.
     """
-    dept_df = df[df[DEPARTMENT_COLUMN] == department]
+    dept_df = df[df[DEPARTMENT_COLUMN] == department] if department is not None else df
     if dept_df.empty or total_incidents == 0:
         return {}
 
@@ -348,21 +355,20 @@ def _expected_distribution(
 
 def run_ts_forecast(
     df: pd.DataFrame,
-    department: str,
-    forecast_days: int,
-    last_training_date: pd.Timestamp,
+    department: str | None = None,
+    forecast_days: int = 30,
+    last_training_date: pd.Timestamp = None,
 ) -> dict:
     """
-    End-to-end time-series incident frequency forecast for *department*.
+    End-to-end time-series incident frequency forecast.
 
-    Automatically selects daily or monthly granularity based on data
-    availability, trains a LightGBM Regressor, and forecasts the given
-    number of days ahead using recursive prediction.
+    When *department* is ``None`` the forecast runs on every record in *df*
+    (use this for company-level or full-dataset predictions after pre-filtering).
 
     Parameters
     ----------
-    df                  : Preprocessed DataFrame (all departments, all dates).
-    department          : Target department name.
+    df                  : Preprocessed DataFrame (already filtered if needed).
+    department          : Target department name, or ``None`` to use all rows.
     forecast_days       : Number of calendar days to predict ahead.
     last_training_date  : Latest date in the training dataset (for reference).
 
@@ -375,8 +381,9 @@ def run_ts_forecast(
     anchor_date = series.index.max()
 
     logger.info(
-        "[TS] Granularity=%s | History=%d periods | Anchor=%s",
+        "[TS] Granularity=%s | History=%d periods | Anchor=%s | Scope=%s",
         granularity, len(series), anchor_date.date(),
+        department if department else "all",
     )
 
     feature_df = _build_feature_df(series)
@@ -410,7 +417,7 @@ def run_ts_forecast(
 
     trend          = _detect_trend(daily_preds)
     high_risk_week = _highest_risk_week(daily_preds)
-    distribution   = _expected_distribution(df, department, total_incidents)
+    distribution   = _expected_distribution(df, department, total_incidents)  # department may be None
 
     logger.info(
         "[TS] → total=%d | trend=%s | peak=%s | granularity=%s",
