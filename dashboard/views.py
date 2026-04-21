@@ -185,6 +185,7 @@ from dashboard.services import (
     get_processed_data,
     list_departments,
     list_companies,
+    list_plants,
     filter_data,
     resolve_effective_inputs,
 )
@@ -210,6 +211,7 @@ def index(request):
     context = {
         "departments": [],
         "companies": [],
+        "plants": [],
         "load_error": None,
         "risk": None,
         "ts": None,
@@ -218,12 +220,14 @@ def index(request):
         "forecast_days": 30,
         "selected_department": "",
         "selected_company": "",
+        "selected_plant": "",
         "distribution_bars": [],
     }
 
     try:
         context["departments"] = list_departments()
         context["companies"] = list_companies()
+        context["plants"] = list_plants()
     except Exception as exc:
         context["load_error"] = str(exc)
         return render(request, "dashboard/index.html", context)
@@ -231,6 +235,7 @@ def index(request):
     if request.method == "POST":
         dept = (request.POST.get("department") or "").strip()
         company = (request.POST.get("company") or "").strip()
+        plant = (request.POST.get("plant") or "").strip()
 
         raw_days = request.POST.get("forecast_days")
         try:
@@ -240,6 +245,7 @@ def index(request):
 
         context["selected_department"] = dept
         context["selected_company"] = company
+        context["selected_plant"] = plant
         context["forecast_days"] = days
 
         if days < 1 or days > 365:
@@ -250,14 +256,14 @@ def index(request):
 
             try:
                 # 🔹 FILTER DATA (same as Streamlit)
-                df_filtered = filter_data(dept or None, company or None)
+                df_filtered = filter_data(dept or None, company or None, plant or None)
 
                 if df_filtered.empty:
                     context["prediction_error"] = "No data available for this selection."
                 else:
                     # 🔹 RESOLVE EFFECTIVE INPUTS
-                    dept, company = resolve_effective_inputs(
-                        df_filtered, dept or None, company or None
+                    dept, company, plant = resolve_effective_inputs(
+                        df_filtered, dept or None, company or None, plant or None
                     )
 
                     df_processed, last_training_date = get_processed_data()
@@ -266,6 +272,7 @@ def index(request):
                     risk = predict_future_risks(
                         dept,
                         company,
+                        plant,
                         days,
                         last_training_date
                     )
@@ -335,6 +342,14 @@ def api_companies(request):
         return JsonResponse({"error": str(exc)}, status=500)
 
 
+@require_GET
+def api_plants(request):
+    try:
+        return JsonResponse({"plants": list_plants()})
+    except Exception as exc:
+        return JsonResponse({"error": str(exc)}, status=500)
+
+
 def _json_body(request) -> dict:
     if not request.body:
         return {}
@@ -350,6 +365,7 @@ def api_predict(request):
 
     department = (payload.get("department") or "").strip()
     company = (payload.get("company") or "").strip()
+    plant = (payload.get("plant") or "").strip()
 
     try:
         forecast_days = int(payload.get("forecast_days", 30))
@@ -363,15 +379,16 @@ def api_predict(request):
     from models.ts_forecaster import run_ts_forecast
 
     try:
-        df_filtered = filter_data(department or None, company or None)
+        df_filtered = filter_data(department or None, company or None, plant or None)
 
         if df_filtered.empty:
             return JsonResponse({"error": "No data available"}, status=400)
 
-        department, company = resolve_effective_inputs(
+        department, company, plant = resolve_effective_inputs(
             df_filtered,
             department or None,
-            company or None
+            company or None,
+            plant or None,
         )
 
         df_processed, last_training_date = get_processed_data()
@@ -380,6 +397,7 @@ def api_predict(request):
         risk = predict_future_risks(
             department,
             company,
+            plant,
             forecast_days,
             last_training_date
         )

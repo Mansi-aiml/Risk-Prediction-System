@@ -18,6 +18,7 @@ TARGET_INCIDENT_TYPE = "incident_type"
 TARGET_SEVERITY_TYPE = "severity_type"
 DEPARTMENT_COLUMN = "department_name"
 COMPANY_COLUMN    = "company_name"
+PLANT_COLUMN      = "plant_name"
 
 
 # ─── Feature Columns Used for Training ────────────────────────────────────────
@@ -28,6 +29,7 @@ FEATURE_COLUMNS = [
     "season_encoded",
     "department_name_encoded",
     "company_name_encoded",
+    "plant_name_encoded",
     "is_weekend",
     "quarter",
 ]
@@ -68,6 +70,7 @@ INCIDENT_MODEL_PATH  = os.path.join(ARTIFACTS_DIR, "incident_type_model.pkl")
 SEVERITY_MODEL_PATH  = os.path.join(ARTIFACTS_DIR, "severity_type_model.pkl")
 DEPT_ENCODER_PATH    = os.path.join(ARTIFACTS_DIR, "dept_encoder.pkl")
 COMPANY_ENCODER_PATH = os.path.join(ARTIFACTS_DIR, "company_encoder.pkl")
+PLANT_ENCODER_PATH   = os.path.join(ARTIFACTS_DIR, "plant_encoder.pkl")
 INCIDENT_ENCODER_PATH = os.path.join(ARTIFACTS_DIR, "incident_encoder.pkl")
 SEVERITY_ENCODER_PATH = os.path.join(ARTIFACTS_DIR, "severity_encoder.pkl")
 

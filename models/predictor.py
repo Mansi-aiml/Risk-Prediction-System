@@ -14,6 +14,7 @@ from config.settings import (
     SEASON_MAP,
     DEPT_ENCODER_PATH,
     COMPANY_ENCODER_PATH,
+    PLANT_ENCODER_PATH,
     INCIDENT_ENCODER_PATH,
     INCIDENT_MODEL_PATH,
     SEVERITY_ENCODER_PATH,
@@ -35,6 +36,7 @@ def _load_artifacts() -> tuple:
         joblib.load(SEVERITY_MODEL_PATH),
         joblib.load(DEPT_ENCODER_PATH),
         joblib.load(COMPANY_ENCODER_PATH),
+        joblib.load(PLANT_ENCODER_PATH),
         joblib.load(INCIDENT_ENCODER_PATH),
         joblib.load(SEVERITY_ENCODER_PATH),
     )
@@ -47,12 +49,13 @@ def _build_future_feature_rows(
     forecast_days: int,
     dept_encoded: int,
     company_encoded: int,
+    plant_encoded: int,
 ) -> pd.DataFrame:
     """
     Generate one feature row per day in the forecast window.
 
-    The department encoding is replicated across every row so the model
-    receives a consistent department context for each future date.
+    The department, company, and plant encodings are replicated across every
+    row so the model receives a consistent context for each future date.
     """
     rows = []
     for offset in range(1, forecast_days + 1):
@@ -67,7 +70,8 @@ def _build_future_feature_rows(
                 "day_of_year":             future_date.timetuple().tm_yday,
                 "season_encoded":          SEASON_ENCODING[season_label],
                 "department_name_encoded": dept_encoded,
-                "company_name_encoded": company_encoded, 
+                "company_name_encoded":    company_encoded,
+                "plant_name_encoded":      plant_encoded,
                 "is_weekend":              int(future_date.dayofweek >= 5),
                 "quarter":                 (month - 1) // 3 + 1,
             }
@@ -110,28 +114,32 @@ def _forecast_midpoint_month(
 
 def predict_future_risks(
     department: str,
-    company: str, 
+    company: str,
+    plant: str,
     forecast_days: int,
     last_training_date: pd.Timestamp,
 ) -> dict:
     """
-    Predict the dominant incident type and severity for a given department
-    over the next *forecast_days* days following the last training date.
+    Predict the dominant incident type and severity for a given department,
+    company, and plant over the next *forecast_days* days following the last
+    training date.
 
     Parameters
     ----------
     department          : Target department name (must exist in training data).
+    company             : Target company name (must exist in training data).
+    plant               : Target plant name (must exist in training data).
     forecast_days       : Number of days to forecast ahead.
     last_training_date  : Latest date present in the training dataset.
 
     Returns
     -------
     dict with keys:
-        department, forecast_days, last_training_date, month, season,
-        incident_type, probability, severity_type, risk_level,
+        department, company, plant, forecast_days, last_training_date, month,
+        season, incident_type, probability, severity_type, risk_level,
         recommendation, warning
     """
-    incident_model, severity_model, dept_enc,company_enc, incident_enc, severity_enc = _load_artifacts()
+    incident_model, severity_model, dept_enc, company_enc, plant_enc, incident_enc, severity_enc = _load_artifacts()
 
     # Department validation
     known_depts = list(dept_enc.classes_)
@@ -140,22 +148,31 @@ def predict_future_risks(
             f"Department '{department}' was not seen during training.\n"
             f"  Available departments: {known_depts}"
         )
-
     dept_encoded = int(dept_enc.transform([department])[0])
 
-    #Company validation
+    # Company validation
     known_companies = list(company_enc.classes_)
     if company not in known_companies:
         raise ValueError(
             f"Company '{company}' not seen in training.\n"
-            f" Available companies: {known_companies}"
+            f"  Available companies: {known_companies}"
         )
-
     company_encoded = int(company_enc.transform([company])[0])
+
+    # Plant validation
+    known_plants = list(plant_enc.classes_)
+    if plant not in known_plants:
+        raise ValueError(
+            f"Plant '{plant}' not seen in training.\n"
+            f"  Available plants: {known_plants}"
+        )
+    plant_encoded = int(plant_enc.transform([plant])[0])
 
     # Build future feature matrix — keep as DataFrame so feature names match
     # what the model stored at fit time (avoids sklearn UserWarning).
-    future_df = _build_future_feature_rows(last_training_date, forecast_days, dept_encoded,company_encoded)
+    future_df = _build_future_feature_rows(
+        last_training_date, forecast_days, dept_encoded, company_encoded, plant_encoded
+    )
     X_future = future_df[FEATURE_COLUMNS]
 
     # Predict probabilities across forecast window
@@ -180,19 +197,21 @@ def predict_future_risks(
     from utils.llm_advisor import generate_llm_advice
 
     warning, recommendation = generate_llm_advice(
-    department,
-    incident_type,
-    severity_type,
-    risk_level
+        department,
+        incident_type,
+        severity_type,
+        risk_level,
     )
 
     logger.info(
-        "Prediction → dept=%s | type=%s (%.2f) | severity=%s | risk=%s",
-        department, incident_type, probability, severity_type, risk_level,
+        "Prediction → dept=%s | company=%s | plant=%s | type=%s (%.2f) | severity=%s | risk=%s",
+        department, company, plant, incident_type, probability, severity_type, risk_level,
     )
 
     return {
         "department":         department,
+        "company":            company,
+        "plant":              plant,
         "forecast_days":      forecast_days,
         "last_training_date": last_training_date.strftime("%Y-%m-%d"),
         "month":              month_name,
@@ -201,7 +220,6 @@ def predict_future_risks(
         "probability":        probability,
         "severity_type":      severity_type,
         "risk_level":         risk_level,
-       "recommendation":     recommendation,
+        "recommendation":     recommendation,
         "warning":            warning,
-        
     }

@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 # from chatbot.sql_chatbot import load_sql_agent
-from config.settings import DATE_COLUMN, COMPANY_COLUMN, DEPARTMENT_COLUMN
+from config.settings import DATE_COLUMN, COMPANY_COLUMN, DEPARTMENT_COLUMN, PLANT_COLUMN
 from data.db_connector import fetch_incident_data
 from data.preprocessor import preprocess
 from models.predictor import predict_future_risks
@@ -104,6 +104,10 @@ department = st.sidebar.selectbox("Select Department", available_depts)
 available_companies = [_ALL] + sorted(df_processed[COMPANY_COLUMN].dropna().unique())
 company = st.sidebar.selectbox("Select Company", available_companies)
 
+# Plant dropdown (optional — leave as '-- All --' to skip)
+available_plants = [_ALL] + sorted(df_processed[PLANT_COLUMN].dropna().unique())
+plant = st.sidebar.selectbox("Select Plant", available_plants)
+
 forecast_days = st.sidebar.number_input(
     "Enter Forecast Days",
     min_value=1,
@@ -124,6 +128,7 @@ if predict_button:
     # ─────────────────────────────────────────────────────────
     dept_selected    = department != _ALL
     company_selected = company    != _ALL
+    plant_selected   = plant      != _ALL
 
     df_filtered = df_processed.copy()
 
@@ -131,24 +136,31 @@ if predict_button:
         df_filtered = df_filtered[df_filtered[DEPARTMENT_COLUMN] == department]
     if company_selected:
         df_filtered = df_filtered[df_filtered[COMPANY_COLUMN] == company]
+    if plant_selected:
+        df_filtered = df_filtered[df_filtered[PLANT_COLUMN] == plant]
 
     if df_filtered.empty:
         st.warning("No historical data available for this selection.")
         st.stop()
 
-    # Derive the effective department for the ML classifier.
-    # When only company is selected the most common department in that
-    # company is used as a representative context for the model.
+    # Derive effective values for the ML classifier.
+    # When a dimension is not selected the most common value in the
+    # filtered data is used as a representative context.
     effective_department = (
         department
         if dept_selected
         else df_filtered[DEPARTMENT_COLUMN].value_counts().idxmax()
     )
     effective_company = (
-    company
-    if company_selected
-    else df_filtered[COMPANY_COLUMN].value_counts().idxmax()
-    ) 
+        company
+        if company_selected
+        else df_filtered[COMPANY_COLUMN].value_counts().idxmax()
+    )
+    effective_plant = (
+        plant
+        if plant_selected
+        else df_filtered[PLANT_COLUMN].value_counts().idxmax()
+    )
 
     # For the TS forecaster: pass the pre-filtered df and the department
     # only when the user explicitly chose one (None → forecast across all
@@ -164,21 +176,26 @@ if predict_button:
         result = predict_future_risks(
             effective_department,
             effective_company,
+            effective_plant,
             forecast_days,
             last_training_date,
         )
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
 
         with col1:
             st.metric("Predicted Incident Type", result["incident_type"])
             st.metric("Predicted Severity", result["severity_type"])
-            st.metric("Risk Level", result["risk_level"])
 
         with col2:
+            st.metric("Risk Level", result["risk_level"])
             st.metric("Probability", result["probability"])
+
+        with col3:
             st.metric("Month", result["month"])
             st.metric("Season", result["season"])
+
+        st.metric("Plant", result["plant"])
 
         st.subheader("⚠️ Warnings")
         for w in result["warning"]:

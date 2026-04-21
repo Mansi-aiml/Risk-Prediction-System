@@ -433,6 +433,17 @@ function showLoader() {
       {% endfor %}
     </select>
 
+    <!-- Plant -->
+    <label>Select Plant</label>
+    <select name="plant">
+      <option value="" {% if not selected_plant %}selected{% endif %}>-- All --</option>
+      {% for p in plants %}
+        <option value="{{ p }}" {% if p == selected_plant %}selected{% endif %}>
+          {{ p }}
+        </option>
+      {% endfor %}
+    </select>
+
     <!-- Forecast -->
     <label>Forecast Days</label>
     <input type="number" name="forecast_days" value="{{ forecast_days }}" min="1" max="365">
@@ -441,7 +452,7 @@ function showLoader() {
   </form>
 
   <p style="font-size:12px;color:gray;">
-    You can select department, company, or both.
+    You can select department, company, plant, or any combination.
   </p>
 
   {% endif %}
@@ -466,6 +477,7 @@ function showLoader() {
   <div class="metric"><div class="lbl">Month</div><div class="val">{{ risk.month }}</div></div>
   <div class="metric"><div class="lbl">Risk</div><div class="val">{{ risk.risk_level }}</div></div>
   <div class="metric"><div class="lbl">Season</div><div class="val">{{ risk.season }}</div></div>
+  <div class="metric"><div class="lbl">Plant</div><div class="val">{{ risk.plant }}</div></div>
 </div>
 
 <h3>⚠️ Warnings</h3>

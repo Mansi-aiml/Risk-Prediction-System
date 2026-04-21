@@ -32,7 +32,7 @@ from __future__ import annotations
 from functools import lru_cache
 import pandas as pd
 
-from config.settings import DATE_COLUMN, DEPARTMENT_COLUMN, COMPANY_COLUMN
+from config.settings import DATE_COLUMN, DEPARTMENT_COLUMN, COMPANY_COLUMN, PLANT_COLUMN
 from data.db_connector import fetch_incident_data
 from data.preprocessor import preprocess
 
@@ -61,10 +61,19 @@ def list_companies() -> list[str]:
     return sorted(df_processed[COMPANY_COLUMN].dropna().unique().tolist())
 
 
+def list_plants() -> list[str]:
+    df_processed, _ = get_processed_data()
+    return sorted(df_processed[PLANT_COLUMN].dropna().unique().tolist())
+
+
 # ─────────────────────────────────────────────────────────────
 # Filtering Logic
 # ─────────────────────────────────────────────────────────────
-def filter_data(department: str | None = None, company: str | None = None) -> pd.DataFrame:
+def filter_data(
+    department: str | None = None,
+    company: str | None = None,
+    plant: str | None = None,
+) -> pd.DataFrame:
     df_processed, _ = get_processed_data()
     df_filtered = df_processed.copy()
 
@@ -73,6 +82,9 @@ def filter_data(department: str | None = None, company: str | None = None) -> pd
 
     if company:
         df_filtered = df_filtered[df_filtered[COMPANY_COLUMN] == company]
+
+    if plant:
+        df_filtered = df_filtered[df_filtered[PLANT_COLUMN] == plant]
 
     return df_filtered
 
@@ -84,7 +96,8 @@ def resolve_effective_inputs(
     df_filtered: pd.DataFrame,
     department: str | None = None,
     company: str | None = None,
-) -> tuple[str, str]:
+    plant: str | None = None,
+) -> tuple[str, str, str]:
 
     if df_filtered.empty:
         raise ValueError("No data available for selected filters")
@@ -95,4 +108,7 @@ def resolve_effective_inputs(
     if company is None:
         company = df_filtered[COMPANY_COLUMN].value_counts().idxmax()
 
-    return department, company
+    if plant is None:
+        plant = df_filtered[PLANT_COLUMN].value_counts().idxmax()
+
+    return department, company, plant

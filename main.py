@@ -175,16 +175,21 @@ def main() -> None:
     # ── Stage 4: Prediction ───────────────────────────────────────────────────
     _section("Stage 4/4 — Incident Risk Prediction")
 
-    # Show available departments for user reference
-    available_depts = sorted(df_processed["department_name"].unique())
+    # Show available departments, companies, and plants for user reference
+    available_depts    = sorted(df_processed["department_name"].unique())
+    available_companies = sorted(df_processed["company_name"].unique())
+    available_plants   = sorted(df_processed["plant_name"].unique())
     print(f"\n  Available departments:\n  {available_depts}\n")
+    print(f"\n  Available companies:\n  {available_companies}\n")
+    print(f"\n  Available plants:\n  {available_plants}\n")
 
     department    = input("  Enter Department   : ").strip()
-    company       = input("  Enter Company      : ").strip()  
+    company       = input("  Enter Company      : ").strip()
+    plant         = input("  Enter Plant        : ").strip()
     forecast_days = int(input("  Enter Forecast Days: ").strip())
 
     try:
-        result = predict_future_risks(department, company, forecast_days, last_training_date)
+        result = predict_future_risks(department, company, plant, forecast_days, last_training_date)
         _print_report(result)
     except ValueError as exc:
         print(f"\n  [ERROR] {exc}")
